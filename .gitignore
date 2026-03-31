@@ -16,7 +16,7 @@ data/*.db
 logs/*.log
 
 # Generated reports (keep template)
-dashboards/weather_report.html
+
 
 # IDE
 .vscode/

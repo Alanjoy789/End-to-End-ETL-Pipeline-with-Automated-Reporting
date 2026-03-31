@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather ETL Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-2: #242836;
+            --border: #2e3345;
+            --text: #e4e7f1;
+            --text-dim: #8a90a5;
+            --accent: #6c72ff;
+            --accent-glow: rgba(108, 114, 255, 0.15);
+            --hot: #ff6b6b;
+            --warm: #ffa94d;
+            --mild: #69db7c;
+            --cold: #74c0fc;
+            --freezing: #b197fc;
+            --success: #51cf66;
+            --fail: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.25rem;
+        }
+        .header h1 span { color: var(--accent); }
+        .header .subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-card .label {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .chart-box h3 {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+        .chart-box canvas {
+            max-height: 280px;
+        }
+
+        /* City Cards */
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .city-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: border-color 0.2s;
+        }
+        .city-card:hover { border-color: var(--accent); }
+        .city-card .city-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.1rem;
+        }
+        .city-card .country {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+        .city-card .temp-big {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .city-card .condition {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin: 0.5rem 0;
+            text-transform: capitalize;
+        }
+        .city-card .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+        }
+        .temp-hot { color: var(--hot); }
+        .temp-warm { color: var(--warm); }
+        .temp-mild { color: var(--mild); }
+        .temp-cold { color: var(--cold); }
+        .temp-freezing { color: var(--freezing); }
+
+        /* Pipeline History */
+        .history-section { margin-bottom: 2rem; }
+        .history-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .history-table th {
+            text-align: left;
+            color: var(--text-dim);
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .history-table td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .status-SUCCESS { background: rgba(81, 207, 102, 0.15); color: var(--success); }
+        .status-FAILED { background: rgba(255, 107, 107, 0.15); color: var(--fail); }
+        .status-PARTIAL { background: rgba(255, 169, 77, 0.15); color: var(--warm); }
+
+        .footer {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+        }
+        .no-data h2 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text); }
+
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌦️ Weather <span>ETL Dashboard</span></h1>
+            <div class="subtitle">Generated: 2026-03-31 19:39 UTC</div>
+        </div>
+
+        
+
+        <!-- Key Metrics -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="value">5</div>
+                <div class="label">Cities Tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">20.0°</div>
+                <div class="label">Avg Temperature</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">28.0°</div>
+                <div class="label">Hottest (city    Mumbai
+city    Mumbai
+Name: 0, dtype: str)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">15.4°</div>
+                <div class="label">Coldest (city    Tokyo
+city    Tokyo
+Name: 4, dtype: str)</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">84.4</div>
+                <div class="label">Best Comfort (city    London
+city    London
+Name: 3, dtype: str)</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>Temperature by City (°C)</h3>
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Humidity Levels (%)</h3>
+                <canvas id="humidityChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Wind Speed (m/s)</h3>
+                <canvas id="windChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Weather Conditions</h3>
+                <canvas id="conditionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- City Cards -->
+        <h2 style="font-size:1.1rem; margin-bottom:1rem;">City Details</h2>
+        <div class="city-grid">
+            
+            <div class="city-card">
+                <div class="city-name">city    Mumbai
+city    Mumbai
+Name: 0, dtype: object</div>
+                <div class="country">IN</div>
+                <div class="temp-big
+                    temp-warm
+                    
+                ">28.0°C</div>
+                <div class="condition">haze</div>
+                <div class="meta-row">
+                    <span>💧 74.0%</span>
+                    <span>💨 3.6 m/s</span>
+                    <span>🎯 75.8</span>
+                </div>
+            </div>
+            
+            <div class="city-card">
+                <div class="city-name">city    New York
+city    New York
+Name: 1, dtype: object</div>
+                <div class="country">US</div>
+                <div class="temp-big
+                    temp-warm
+                    
+                ">25.1°C</div>
+                <div class="condition">broken clouds</div>
+                <div class="meta-row">
+                    <span>💧 47.0%</span>
+                    <span>💨 8.2 m/s</span>
+                    <span>🎯 83.0</span>
+                </div>
+            </div>
+            
+            <div class="city-card">
+                <div class="city-name">city    Sydney
+city    Sydney
+Name: 2, dtype: object</div>
+                <div class="country">AU</div>
+                <div class="temp-big
+                    temp-mild
+                    
+                ">15.7°C</div>
+                <div class="condition">clear sky</div>
+                <div class="meta-row">
+                    <span>💧 92.0%</span>
+                    <span>💨 2.2 m/s</span>
+                    <span>🎯 76.3</span>
+                </div>
+            </div>
+            
+            <div class="city-card">
+                <div class="city-name">city    London
+city    London
+Name: 3, dtype: object</div>
+                <div class="country">GB</div>
+                <div class="temp-big
+                    temp-mild
+                    
+                ">15.5°C</div>
+                <div class="condition">overcast clouds</div>
+                <div class="meta-row">
+                    <span>💧 69.0%</span>
+                    <span>💨 2.1 m/s</span>
+                    <span>🎯 84.4</span>
+                </div>
+            </div>
+            
+            <div class="city-card">
+                <div class="city-name">city    Tokyo
+city    Tokyo
+Name: 4, dtype: object</div>
+                <div class="country">JP</div>
+                <div class="temp-big
+                    temp-mild
+                    
+                ">15.4°C</div>
+                <div class="condition">few clouds</div>
+                <div class="meta-row">
+                    <span>💧 95.0%</span>
+                    <span>💨 1.5 m/s</span>
+                    <span>🎯 75.3</span>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Pipeline Run History -->
+        
+        <div class="history-section">
+            <h2>Pipeline Run History</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Timestamp</th>
+                        <th>Status</th>
+                        <th>Records</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>#3</td>
+                        <td>2026-03-31T18:37:05</td>
+                        <td><span class="status-badge status-SUCCESS">SUCCESS</span></td>
+                        <td>4</td>
+                        <td>1.62s</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+        
+
+        
+
+        <div class="footer">
+            ETL Pipeline Portfolio Project · Data sourced from OpenWeatherMap API
+        </div>
+    </div>
+
+    
+    <script>
+        Chart.defaults.color = '#8a90a5';
+        Chart.defaults.borderColor = '#2e3345';
+        Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+        const cities = ["city", "city"];
+        const temps = [27.99, 25.15, 15.71, 15.54, 15.38];
+        const feelsLike = [31.19, 24.95, 15.74, 14.95, 15.45];
+        const humidity = [74.0, 47.0, 92.0, 69.0, 95.0];
+        const wind = [3.6, 8.23, 2.16, 2.06, 1.54];
+        const conditions = ["Clouds", "Haze", "Clear"];
+        const conditionVals = [3, 1, 1];
+
+        // Temperature Chart
+        new Chart(document.getElementById('tempChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [
+                    {
+                        label: 'Actual',
+                        data: temps,
+                        backgroundColor: 'rgba(108, 114, 255, 0.7)',
+                        borderRadius: 6,
+                    },
+                    {
+                        label: 'Feels Like',
+                        data: feelsLike,
+                        backgroundColor: 'rgba(108, 114, 255, 0.3)',
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'top' } } }
+        });
+
+        // Humidity Chart
+        new Chart(document.getElementById('humidityChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [{
+                    label: 'Humidity %',
+                    data: humidity,
+                    backgroundColor: humidity.map(h =>
+                        h > 80 ? 'rgba(255, 107, 107, 0.7)' :
+                        h > 60 ? 'rgba(255, 169, 77, 0.7)' :
+                        'rgba(81, 207, 102, 0.7)'
+                    ),
+                    borderRadius: 6,
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+
+        // Wind Chart
+        new Chart(document.getElementById('windChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [{
+                    label: 'Wind m/s',
+                    data: wind,
+                    backgroundColor: 'rgba(116, 192, 252, 0.7)',
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Conditions Doughnut
+        const palette = ['#6c72ff','#ff6b6b','#ffa94d','#69db7c','#74c0fc','#b197fc','#ffd43b'];
+        new Chart(document.getElementById('conditionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: conditions,
+                datasets: [{
+                    data: conditionVals,
+                    backgroundColor: palette.slice(0, conditions.length),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                cutout: '60%',
+            }
+        });
+    </script>
+    
+</body>
+</html>
