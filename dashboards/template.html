@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather ETL Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-2: #242836;
+            --border: #2e3345;
+            --text: #e4e7f1;
+            --text-dim: #8a90a5;
+            --accent: #6c72ff;
+            --accent-glow: rgba(108, 114, 255, 0.15);
+            --hot: #ff6b6b;
+            --warm: #ffa94d;
+            --mild: #69db7c;
+            --cold: #74c0fc;
+            --freezing: #b197fc;
+            --success: #51cf66;
+            --fail: #ff6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.25rem;
+        }
+        .header h1 span { color: var(--accent); }
+        .header .subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-card .label {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .chart-box h3 {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+        .chart-box canvas {
+            max-height: 280px;
+        }
+
+        /* City Cards */
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .city-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: border-color 0.2s;
+        }
+        .city-card:hover { border-color: var(--accent); }
+        .city-card .city-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.1rem;
+        }
+        .city-card .country {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+        .city-card .temp-big {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .city-card .condition {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin: 0.5rem 0;
+            text-transform: capitalize;
+        }
+        .city-card .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+        }
+        .temp-hot { color: var(--hot); }
+        .temp-warm { color: var(--warm); }
+        .temp-mild { color: var(--mild); }
+        .temp-cold { color: var(--cold); }
+        .temp-freezing { color: var(--freezing); }
+
+        /* Pipeline History */
+        .history-section { margin-bottom: 2rem; }
+        .history-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .history-table th {
+            text-align: left;
+            color: var(--text-dim);
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .history-table td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .status-SUCCESS { background: rgba(81, 207, 102, 0.15); color: var(--success); }
+        .status-FAILED { background: rgba(255, 107, 107, 0.15); color: var(--fail); }
+        .status-PARTIAL { background: rgba(255, 169, 77, 0.15); color: var(--warm); }
+
+        .footer {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+        }
+        .no-data h2 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text); }
+
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌦️ Weather <span>ETL Dashboard</span></h1>
+            <div class="subtitle">Generated: {{ generated_at }}</div>
+        </div>
+
+        {% if not has_data %}
+        <div class="no-data">
+            <h2>No Data Available</h2>
+            <p>Run the pipeline first: <code>python -m src.pipeline</code></p>
+        </div>
+        {% else %}
+
+        <!-- Key Metrics -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="value">{{ stats.total_cities }}</div>
+                <div class="label">Cities Tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ stats.avg_temp }}°</div>
+                <div class="label">Avg Temperature</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ stats.max_temp }}°</div>
+                <div class="label">Hottest ({{ stats.max_temp_city }})</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ stats.min_temp }}°</div>
+                <div class="label">Coldest ({{ stats.min_temp_city }})</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ stats.best_comfort_score }}</div>
+                <div class="label">Best Comfort ({{ stats.most_comfortable_city }})</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-box">
+                <h3>Temperature by City (°C)</h3>
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Humidity Levels (%)</h3>
+                <canvas id="humidityChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Wind Speed (m/s)</h3>
+                <canvas id="windChart"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>Weather Conditions</h3>
+                <canvas id="conditionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- City Cards -->
+        <h2 style="font-size:1.1rem; margin-bottom:1rem;">City Details</h2>
+        <div class="city-grid">
+            {% for card in city_cards %}
+            <div class="city-card">
+                <div class="city-name">{{ card.city }}</div>
+                <div class="country">{{ card.country }}</div>
+                <div class="temp-big
+                    {% if card.temp >= 30 %}temp-hot
+                    {% elif card.temp >= 20 %}temp-warm
+                    {% elif card.temp >= 10 %}temp-mild
+                    {% elif card.temp >= 0 %}temp-cold
+                    {% else %}temp-freezing{% endif %}
+                ">{{ card.temp }}°C</div>
+                <div class="condition">{{ card.description }}</div>
+                <div class="meta-row">
+                    <span>💧 {{ card.humidity }}%</span>
+                    <span>💨 {{ card.wind }} m/s</span>
+                    <span>🎯 {{ card.comfort }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pipeline Run History -->
+        {% if run_history %}
+        <div class="history-section">
+            <h2>Pipeline Run History</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Timestamp</th>
+                        <th>Status</th>
+                        <th>Records</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in run_history %}
+                    <tr>
+                        <td>#{{ run.run_id }}</td>
+                        <td>{{ run.start }}</td>
+                        <td><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></td>
+                        <td>{{ run.records }}</td>
+                        <td>{{ run.duration }}s</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% endif %}
+
+        <div class="footer">
+            ETL Pipeline Portfolio Project · Data sourced from OpenWeatherMap API
+        </div>
+    </div>
+
+    {% if has_data %}
+    <script>
+        Chart.defaults.color = '#8a90a5';
+        Chart.defaults.borderColor = '#2e3345';
+        Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+        const cities = {{ cities | tojson }};
+        const temps = {{ temperatures | tojson }};
+        const feelsLike = {{ feels_like | tojson }};
+        const humidity = {{ humidity | tojson }};
+        const wind = {{ wind_speed | tojson }};
+        const conditions = {{ conditions | tojson }};
+        const conditionVals = {{ condition_values | tojson }};
+
+        // Temperature Chart
+        new Chart(document.getElementById('tempChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [
+                    {
+                        label: 'Actual',
+                        data: temps,
+                        backgroundColor: 'rgba(108, 114, 255, 0.7)',
+                        borderRadius: 6,
+                    },
+                    {
+                        label: 'Feels Like',
+                        data: feelsLike,
+                        backgroundColor: 'rgba(108, 114, 255, 0.3)',
+                        borderRadius: 6,
+                    }
+                ]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'top' } } }
+        });
+
+        // Humidity Chart
+        new Chart(document.getElementById('humidityChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [{
+                    label: 'Humidity %',
+                    data: humidity,
+                    backgroundColor: humidity.map(h =>
+                        h > 80 ? 'rgba(255, 107, 107, 0.7)' :
+                        h > 60 ? 'rgba(255, 169, 77, 0.7)' :
+                        'rgba(81, 207, 102, 0.7)'
+                    ),
+                    borderRadius: 6,
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+
+        // Wind Chart
+        new Chart(document.getElementById('windChart'), {
+            type: 'bar',
+            data: {
+                labels: cities,
+                datasets: [{
+                    label: 'Wind m/s',
+                    data: wind,
+                    backgroundColor: 'rgba(116, 192, 252, 0.7)',
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Conditions Doughnut
+        const palette = ['#6c72ff','#ff6b6b','#ffa94d','#69db7c','#74c0fc','#b197fc','#ffd43b'];
+        new Chart(document.getElementById('conditionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: conditions,
+                datasets: [{
+                    data: conditionVals,
+                    backgroundColor: palette.slice(0, conditions.length),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                cutout: '60%',
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

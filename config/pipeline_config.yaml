@@ -1,0 +1,36 @@
+# ============================================
+# ETL Pipeline Configuration
+# ============================================
+
+api:
+  # OpenWeatherMap API settings
+  # Get your free API key at: https://openweathermap.org/api
+  key: "e5f4b2e9572b6263a4b0afdd334443c4"
+  base_url: "https://api.openweathermap.org/data/2.5/weather"
+  units: "metric"   # metric (°C) | imperial (°F) | standard (K)
+  timeout: 10        # Request timeout in seconds
+  max_retries: 3     # Number of retry attempts on failure
+  retry_delay: 2     # Seconds between retries
+
+  # Cities to track — add or remove as needed
+  cities:
+    - London
+    - New York
+    - Tokyo
+    - Mumbai
+    - Sydney
+
+database:
+  path: "data/weather.db"
+  table_name: "weather_data"
+  log_table: "pipeline_runs"
+
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  reports: "dashboards"
+  logs: "logs"
+
+reporting:
+  template: "dashboards/template.html"
+  output: "dashboards/weather_report.html"

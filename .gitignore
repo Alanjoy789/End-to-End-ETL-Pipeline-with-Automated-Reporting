@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Data (keep structure, ignore contents)
+data/raw/*.json
+data/processed/*.csv
+data/*.db
+
+# Logs
+logs/*.log
+
+# Generated reports (keep template)
+dashboards/weather_report.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env
